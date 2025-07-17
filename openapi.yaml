@@ -2,10 +2,11 @@ openapi: 3.1.0
 info:
   title: Slack Proxy API
   version: 1.0.0
-  description: GPT middleware to fetch messages from Slack on behalf of the user.
+  description: GPT middleware to interact with Slack using user tokens.
+
 servers:
   - url: https://slack-chatgpt-connection.delightfulflower-924a0481.westus2.azurecontainerapps.io
-    description: Azure-hosted Slack proxy API
+    description: Azure-hosted Slack proxy backend
 
 paths:
   /slack/messages:
@@ -43,3 +44,71 @@ paths:
                     type: array
                     items:
                       type: object
+
+  /slack/send-message:
+    post:
+      operationId: sendSlackMessage
+      summary: Send a Slack message as the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, channel, text]
+              properties:
+                user_id:
+                  type: string
+                channel:
+                  type: string
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  ts:
+                    type: string
+                  channel:
+                    type: string
+
+  /slack/conversations:
+    get:
+      operationId: getConversations
+      summary: Get list of conversations for the user
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of Slack conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  conversations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        is_channel:
+                          type: boolean
+                        is_im:
+                          type: boolean
+                        is_group:
