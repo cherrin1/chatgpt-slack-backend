@@ -3,10 +3,8 @@ info:
   title: Slack Proxy API
   version: 1.0.0
   description: GPT middleware to interact with Slack using user tokens.
-
 servers:
   - url: https://slack-chatgpt-connection.delightfulflower-924a0481.westus2.azurecontainerapps.io
-    description: Azure-hosted Slack proxy backend
 
 paths:
   /slack/messages:
@@ -112,3 +110,6 @@ paths:
                         is_im:
                           type: boolean
                         is_group:
+                          type: boolean
+                        is_mpim:
+                          type: boolean
