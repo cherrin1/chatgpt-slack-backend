@@ -1,12 +1,29 @@
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 import httpx
-from models.token_store import get_token_by_gpt_user, load_user_map
+from models.token_store import (
+    get_token_by_gpt_user,
+    load_user_map,
+    get_secret
+)
 
 router = APIRouter()
 
 @router.get("/slack/status")
-async def slack_status(user_id: str = Query(...)):
+async def slack_status(
+    user_id: str = Query(...),
+    secret: str = Query(...)
+):
+    # ✅ Validate the user's secret
+    stored_secret = get_secret(user_id)
+    if not stored_secret or stored_secret != secret:
+        return JSONResponse({
+            "ok": False,
+            "connected": False,
+            "message": "Invalid or missing secret. Please verify your identity."
+        })
+
+    # ✅ Lookup Slack user ID
     user_map = load_user_map()
     slack_user_id = user_map.get(user_id)
 
@@ -18,17 +35,18 @@ async def slack_status(user_id: str = Query(...)):
             "auth_url": f"/oauth/start?gpt_user_id={user_id}"
         })
 
+    # ✅ Check token
     token = get_token_by_gpt_user(user_id)
     if not token:
         return JSONResponse({
             "ok": False,
             "connected": False,
-            "message": "Slack user found but token is missing or expired.",
             "slack_user_id": slack_user_id,
+            "message": "Slack user found but token is missing or expired.",
             "auth_url": f"/oauth/start?gpt_user_id={user_id}"
         })
 
-    # ✅ Fetch Slack username from Slack API
+    # ✅ Optionally fetch Slack username
     async with httpx.AsyncClient() as client:
         user_info = await client.get(
             "https://slack.com/api/users.info",
