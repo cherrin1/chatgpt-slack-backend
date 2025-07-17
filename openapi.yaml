@@ -1,42 +1,35 @@
-openapi: 3.1.0
-info:
-  title: Slack Proxy API
-  version: 1.0.0
-  description: GPT middleware API for sending Slack messages per user.
-servers:
-  - url: https://yourapp.azurewebsites.net
-paths:
-  /slack/send-message:
-    post:
-      operationId: sendSlackMessage
-      summary: Send a Slack message
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [user_id, channel, text]
-              properties:
-                user_id:
-                  type: string
-                channel:
-                  type: string
-                text:
-                  type: string
-      responses:
-        '200':
-          description: Message sent
-  /slack/conversations:
+  /slack/messages:
     get:
-      operationId: getConversations
-      summary: Get Slack conversations
+      operationId: getMessages
+      summary: Get Slack messages from a channel or DM
       parameters:
         - name: user_id
           in: query
           required: true
           schema:
             type: string
+        - name: channel
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
       responses:
         '200':
-          description: List of conversations
+          description: Message history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  messages:
+                    type: array
+                    items:
+                      type: object
