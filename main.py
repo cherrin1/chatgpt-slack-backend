@@ -3,7 +3,7 @@ from slack_oauth import router as oauth_router
 from routes.send_message import router as send_message_router
 from routes.get_conversations import router as get_conversations_router
 from routes.get_messages import router as get_messages_router
-from slack_status import router as status_router
+from routes.slack_status import router as status_router
 
 
 app = FastAPI()
