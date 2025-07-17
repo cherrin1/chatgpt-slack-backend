@@ -36,7 +36,8 @@ async def start_oauth(gpt_user_id: str = Query(...)):
 
 @router.get("/oauth/callback", response_class=HTMLResponse)
 async def oauth_callback(code: str = Query(...), state: str = Query(...)):
-    gpt_user_id = state
+    # We're replacing GPT's opaque user_id with Slack username later
+    original_gpt_id = state
 
     client_id = os.getenv("SLACK_CLIENT_ID")
     client_secret = os.getenv("SLACK_CLIENT_SECRET")
@@ -49,6 +50,7 @@ async def oauth_callback(code: str = Query(...), state: str = Query(...)):
         )
 
     async with httpx.AsyncClient() as client:
+        # Step 1: Get token
         resp = await client.post("https://slack.com/api/oauth.v2.access", data={
             "client_id": client_id,
             "client_secret": client_secret,
@@ -56,13 +58,29 @@ async def oauth_callback(code: str = Query(...), state: str = Query(...)):
             "redirect_uri": redirect_uri
         })
 
-    data = resp.json()
+        data = resp.json()
 
-    if data.get("ok") and "authed_user" in data:
+        if not data.get("ok") or "authed_user" not in data:
+            error_message = data.get("error", "Unknown error")
+            return HTMLResponse(
+                content=f"<h2>❌ Slack connection failed:</h2><pre>{error_message}</pre>",
+                status_code=400
+            )
+
         slack_user_id = data["authed_user"]["id"]
         access_token = data["authed_user"]["access_token"]
 
-        save_token(slack_user_id, access_token, gpt_user_id)
+        # Step 2: Look up Slack username
+        user_info_resp = await client.get(
+            "https://slack.com/api/users.info",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"user": slack_user_id}
+        )
+        user_info = user_info_resp.json()
+        slack_username = user_info.get("user", {}).get("name", slack_user_id)
+
+        # Step 3: Save using slack_username as the GPT user ID
+        save_token(slack_user_id, access_token, gpt_user_id=slack_username)
 
         return HTMLResponse(f"""
             <html>
@@ -71,16 +89,11 @@ async def oauth_callback(code: str = Query(...), state: str = Query(...)):
                     <h2>✅ Slack Connected!</h2>
                     <p>You are now linked as:</p>
                     <ul>
-                        <li><strong>Slack User:</strong> <code>{slack_user_id}</code></li>
-                        <li><strong>GPT User:</strong> <code>{gpt_user_id}</code></li>
+                        <li><strong>Slack Username:</strong> <code>{slack_username}</code></li>
+                        <li><strong>Slack User ID:</strong> <code>{slack_user_id}</code></li>
                     </ul>
-                    <p>You can now return to ChatGPT.</p>
+                    <p>This username will now act as your GPT identity.</p>
+                    <p>You can return to ChatGPT.</p>
                 </body>
             </html>
         """)
-
-    error_message = data.get("error", "Unknown error")
-    return HTMLResponse(
-        content=f"<h2>❌ Slack connection failed:</h2><pre>{error_message}</pre>",
-        status_code=400
-    )
