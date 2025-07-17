@@ -1,3 +1,13 @@
+openapi: 3.1.0
+info:
+  title: Slack Proxy API
+  version: 1.0.0
+  description: GPT middleware to fetch messages from Slack on behalf of the user.
+servers:
+  - url: https://slack-chatgpt-connection.delightfulflower-924a0481.westus2.azurecontainerapps.io
+    description: Azure-hosted Slack proxy API
+
+paths:
   /slack/messages:
     get:
       operationId: getMessages
