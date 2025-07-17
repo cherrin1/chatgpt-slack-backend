@@ -30,7 +30,13 @@ async def start_oauth():
 
     user_scope = urllib.parse.quote_plus(" ".join(scopes))
 
-    url = f"https://slack.com/oauth/v2/authorize?client_id={client_id}&user_scope={user_scope}&redirect_uri={urllib.parse.quote_plus(redirect_uri)}&state={state}"
+    url = (
+        f"https://slack.com/oauth/v2/authorize"
+        f"?client_id={client_id}"
+        f"&user_scope={user_scope}"
+        f"&redirect_uri={urllib.parse.quote_plus(redirect_uri)}"
+        f"&state={state}"
+    )
     
     return {"url": url}
 
