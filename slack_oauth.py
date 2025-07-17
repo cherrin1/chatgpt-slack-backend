@@ -2,8 +2,9 @@ import os
 import httpx
 import urllib.parse
 import uuid
-from fastapi import APIRouter, Query
-from models.token_store import save_token
+from fastapi import APIRouter, Query, Request
+from fastapi.responses import HTMLResponse
+from models.token_store import save_token  # assumes you implemented this
 
 router = APIRouter()
 
@@ -11,7 +12,7 @@ router = APIRouter()
 async def start_oauth():
     client_id = os.getenv("SLACK_CLIENT_ID")
     redirect_uri = os.getenv("SLACK_REDIRECT_URI")
-    state = str(uuid.uuid4())  # optional: store this in DB to validate later
+    state = str(uuid.uuid4())  # optional: save to DB for CSRF protection
 
     scopes = [
         "channels:read",
@@ -40,8 +41,8 @@ async def start_oauth():
     
     return {"url": url}
 
-@router.get("/oauth/callback")
-async def oauth_callback(code: str = Query(...)):
+@router.get("/oauth/callback", response_class=HTMLResponse)
+async def oauth_callback(code: str = Query(...), state: str = Query(None)):
     client_id = os.getenv("SLACK_CLIENT_ID")
     client_secret = os.getenv("SLACK_CLIENT_SECRET")
     redirect_uri = os.getenv("SLACK_REDIRECT_URI")
@@ -59,7 +60,22 @@ async def oauth_callback(code: str = Query(...)):
     if data.get("ok") and "authed_user" in data:
         user_id = data["authed_user"]["id"]
         access_token = data["authed_user"]["access_token"]
-        save_token(user_id, access_token)
-        return {"message": "Slack connected!", "user_id": user_id}
 
-    return {"error": data}
+        save_token(user_id, access_token)
+
+        html = f"""
+        <html>
+        <head><title>Slack Connected</title></head>
+        <body style="font-family:sans-serif">
+            <h2>✅ Slack Connected!</h2>
+            <p>You can now return to ChatGPT and use Slack actions as <code>{user_id}</code>.</p>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html, status_code=200)
+
+    error_message = data.get("error", "Unknown error")
+    return HTMLResponse(
+        content=f"<h2>❌ Slack connection failed:</h2><pre>{error_message}</pre>",
+        status_code=400
+    )
