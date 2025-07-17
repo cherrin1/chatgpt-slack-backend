@@ -17,9 +17,30 @@ async def start_oauth(gpt_user_id: str = Query(...)):
         raise HTTPException(status_code=500, detail="Missing Slack client ID or redirect URI in environment variables")
 
     scopes = [
-        "channels:read", "chat:write", "users:read", "channels:history",
-        "im:history", "mpim:history", "search:read", "groups:read",
-        "mpim:read", "channels:write", "groups:write", "im:write"
+        "channels:history",
+        "channels:read",
+        "channels:write",
+        "chat:write",
+        "files:read",
+        "files:write",
+        "groups:history",
+        "groups:read",
+        "groups:write",
+        "im:history",
+        "im:read",
+        "im:write",
+        "links:read",
+        "mpim:history",
+        "mpim:write",
+        "reactions:read",
+        "reactions:write",
+        "search:read",
+        "search:read.files",
+        "search:read.im",
+        "search:read.private",
+        "search:read.public",
+        "team:read",
+        "users:read
     ]
     user_scope = urllib.parse.quote_plus(" ".join(scopes))
 
