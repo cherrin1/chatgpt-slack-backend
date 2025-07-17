@@ -36,13 +36,16 @@ async def start_oauth():
         f"?client_id={client_id}"
         f"&user_scope={user_scope}"
         f"&redirect_uri={urllib.parse.quote_plus(redirect_uri)}"
-        f"&state={state}"
+        f"&state={gpt_user_id}"
     )
     
     return {"url": url}
 
 @router.get("/oauth/callback", response_class=HTMLResponse)
 async def oauth_callback(code: str = Query(...), state: str = Query(None)):
+    # 👇 use `state` as gpt_user_id
+    gpt_user_id = state  # simple reuse
+
     client_id = os.getenv("SLACK_CLIENT_ID")
     client_secret = os.getenv("SLACK_CLIENT_SECRET")
     redirect_uri = os.getenv("SLACK_REDIRECT_URI")
@@ -58,21 +61,19 @@ async def oauth_callback(code: str = Query(...), state: str = Query(None)):
     data = resp.json()
 
     if data.get("ok") and "authed_user" in data:
-        user_id = data["authed_user"]["id"]
+        slack_user_id = data["authed_user"]["id"]
         access_token = data["authed_user"]["access_token"]
 
-        save_token(user_id, access_token)
+        # 👇 store Slack token and GPT user map
+        save_token(slack_user_id, access_token, gpt_user_id)
 
-        html = f"""
-        <html>
-        <head><title>Slack Connected</title></head>
-        <body style="font-family:sans-serif">
+        return HTMLResponse(f"""
             <h2>✅ Slack Connected!</h2>
-            <p>You can now return to ChatGPT and use Slack actions as <code>{user_id}</code>.</p>
-        </body>
-        </html>
-        """
-        return HTMLResponse(content=html, status_code=200)
+            <p>You're linked as <code>{slack_user_id}</code><br>GPT user: <code>{gpt_user_id}</code></p>
+            <p>You can now return to ChatGPT.</p>
+        """)
+
+    return HTMLResponse("<h2>❌ Slack OAuth failed.</h2>", status_code=400)
 
     error_message = data.get("error", "Unknown error")
     return HTMLResponse(
