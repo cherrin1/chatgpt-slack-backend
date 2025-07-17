@@ -1,34 +1,26 @@
 import os
 import httpx
 import urllib.parse
-import uuid
-from fastapi import APIRouter, Query, Request
+from uuid import uuid4
+from fastapi import APIRouter, Query, HTTPException
 from fastapi.responses import HTMLResponse
-from models.token_store import save_token  # assumes you implemented this
+from models.token_store import save_token
 
 router = APIRouter()
 
 @router.get("/oauth/start")
-async def start_oauth():
+async def start_oauth(gpt_user_id: str = Query(...)):
     client_id = os.getenv("SLACK_CLIENT_ID")
     redirect_uri = os.getenv("SLACK_REDIRECT_URI")
-    state = str(uuid.uuid4())  # optional: save to DB for CSRF protection
+
+    if not client_id or not redirect_uri:
+        raise HTTPException(status_code=500, detail="Missing Slack client ID or redirect URI in environment variables")
 
     scopes = [
-        "channels:read",
-        "chat:write",
-        "users:read",
-        "channels:history",
-        "im:history",
-        "mpim:history",
-        "search:read",
-        "groups:read",
-        "mpim:read",
-        "channels:write",
-        "groups:write",
-        "im:write"
+        "channels:read", "chat:write", "users:read", "channels:history",
+        "im:history", "mpim:history", "search:read", "groups:read",
+        "mpim:read", "channels:write", "groups:write", "im:write"
     ]
-
     user_scope = urllib.parse.quote_plus(" ".join(scopes))
 
     url = (
@@ -41,14 +33,20 @@ async def start_oauth():
     
     return {"url": url}
 
+
 @router.get("/oauth/callback", response_class=HTMLResponse)
-async def oauth_callback(code: str = Query(...), state: str = Query(None)):
-    # 👇 use `state` as gpt_user_id
-    gpt_user_id = state  # simple reuse
+async def oauth_callback(code: str = Query(...), state: str = Query(...)):
+    gpt_user_id = state
 
     client_id = os.getenv("SLACK_CLIENT_ID")
     client_secret = os.getenv("SLACK_CLIENT_SECRET")
     redirect_uri = os.getenv("SLACK_REDIRECT_URI")
+
+    if not client_id or not client_secret or not redirect_uri:
+        return HTMLResponse(
+            "<h2>❌ Slack configuration error. Check environment variables.</h2>",
+            status_code=500
+        )
 
     async with httpx.AsyncClient() as client:
         resp = await client.post("https://slack.com/api/oauth.v2.access", data={
@@ -64,16 +62,22 @@ async def oauth_callback(code: str = Query(...), state: str = Query(None)):
         slack_user_id = data["authed_user"]["id"]
         access_token = data["authed_user"]["access_token"]
 
-        # 👇 store Slack token and GPT user map
         save_token(slack_user_id, access_token, gpt_user_id)
 
         return HTMLResponse(f"""
-            <h2>✅ Slack Connected!</h2>
-            <p>You're linked as <code>{slack_user_id}</code><br>GPT user: <code>{gpt_user_id}</code></p>
-            <p>You can now return to ChatGPT.</p>
+            <html>
+                <head><title>Slack Connected</title></head>
+                <body style="font-family:sans-serif">
+                    <h2>✅ Slack Connected!</h2>
+                    <p>You are now linked as:</p>
+                    <ul>
+                        <li><strong>Slack User:</strong> <code>{slack_user_id}</code></li>
+                        <li><strong>GPT User:</strong> <code>{gpt_user_id}</code></li>
+                    </ul>
+                    <p>You can now return to ChatGPT.</p>
+                </body>
+            </html>
         """)
-
-    return HTMLResponse("<h2>❌ Slack OAuth failed.</h2>", status_code=400)
 
     error_message = data.get("error", "Unknown error")
     return HTMLResponse(
