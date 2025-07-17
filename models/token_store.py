@@ -2,7 +2,23 @@ import json, os
 
 TOKENS_FILE = "tokens.json"
 USER_MAP_FILE = "user_map.json"
+SECRETS_FILE = "secrets.json"
 
+def save_secret(user_id, secret):
+    data = load_all_secrets()
+    data[user_id] = secret
+    with open(SECRETS_FILE, "w") as f:
+        json.dump(data, f)
+
+def get_secret(user_id):
+    return load_all_secrets().get(user_id)
+
+def load_all_secrets():
+    if not os.path.exists(SECRETS_FILE):
+        return {}
+    with open(SECRETS_FILE, "r") as f:
+        return json.load(f)
+        
 def save_token(slack_user_id, token, gpt_user_id):
     tokens = load_all_tokens()
     user_map = load_user_map()
