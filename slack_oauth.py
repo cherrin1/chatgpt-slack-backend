@@ -40,7 +40,9 @@ async def start_oauth(gpt_user_id: str = Query(...)):
         "search:read.private",
         "search:read.public",
         "team:read",
-        "users:read"
+        "users:read",
+        "remote_files:share",
+        "remote_files:read"
     ]
     user_scope = urllib.parse.quote_plus(" ".join(scopes))
 
