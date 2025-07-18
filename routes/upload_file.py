@@ -7,12 +7,11 @@ router = APIRouter()
 @router.post("/slack/upload-file")
 async def upload_file(payload: dict):
     user_id = payload["user_id"]
-    secret = payload["secret"]
     file_url = payload["file_url"]
     filename = payload["filename"]
     channel = payload["channel"]
 
-    token = get_token_by_gpt_user(user_id, secret)
+    token = get_token_by_gpt_user(user_id)
     if not token:
         return {"ok": False, "error": "User not authorized"}
 

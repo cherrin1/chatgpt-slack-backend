@@ -9,11 +9,10 @@ router = APIRouter()
 @router.get("/slack/search")
 async def search_slack(
     user_id: str = Query(...),
-    secret: str = Query(...),
     query: str = Query(...),
     page: int = Query(1)
 ):
-    token = get_token_by_gpt_user(user_id, secret)
+    token = get_token_by_gpt_user(user_id)
     if not token:
         return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
 
