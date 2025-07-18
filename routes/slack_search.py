@@ -1,14 +1,21 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from fastapi.responses import JSONResponse
+import httpx
+
 from models.token_store import get_token_by_gpt_user
-from utils.slack_api import slack_post
 
 router = APIRouter()
 
 @router.get("/slack/search")
-async def search_slack(user_id: str = Query(...), secret: str = Query(...), query: str = Query(...), page: int = 1):
+async def search_slack(
+    user_id: str = Query(...),
+    secret: str = Query(...),
+    query: str = Query(...),
+    page: int = Query(1)
+):
     token = get_token_by_gpt_user(user_id, secret)
     if not token:
-        return {"ok": False, "error": "Unauthorized"}
+        return JSONResponse({"ok": False, "error": "Unauthorized"}, status_code=401)
 
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -17,4 +24,8 @@ async def search_slack(user_id: str = Query(...), secret: str = Query(...), quer
             params={"query": query, "page": page, "count": 100}
         )
 
-    return resp.json()
+    data = resp.json()
+    if not data.get("ok"):
+        return JSONResponse(data, status_code=400)
+
+    return JSONResponse(data)
